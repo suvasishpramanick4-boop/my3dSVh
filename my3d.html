@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>neon flux · 3D video clipper</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(10, 10, 20, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 40px;
+            padding: 12px 24px;
+            border: 1px solid rgba(255, 120, 200, 0.5);
+            box-shadow: 0 0 30px rgba(180, 0, 255, 0.3);
+            z-index: 10;
+            font-weight: 300;
+            letter-spacing: 1px;
+            pointer-events: none;
+        }
+        #info span {
+            color: #ffaaee;
+            font-weight: 600;
+            text-shadow: 0 0 15px magenta;
+        }
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 950px;
+            background: rgba(20, 15, 30, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 60px;
+            padding: 20px 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 0, 255, 0.4);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 50px rgba(150, 0, 255, 0.5);
+            z-index: 20;
+            transition: box-shadow 0.3s;
+        }
+        #controls:hover {
+            box-shadow: 0 20px 50px rgba(255, 0, 200, 0.4), 0 0 80px #8a2be2;
+        }
+        .btn {
+            background: linear-gradient(145deg, #2a1e3a, #1a1028);
+            border: none;
+            color: #f0d0ff;
+            padding: 12px 28px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 128, 255, 0.6);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 255, 0.4);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover {
+            background: linear-gradient(145deg, #3f2b55, #281c38);
+            color: white;
+            border-color: #ffaaff;
+            box-shadow: 0 0 30px #ff44ee, 0 5px 20px black;
+            transform: scale(1.02);
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 180px;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 18px;
+            border-radius: 40px;
+            border: 1px solid #ff88cc;
+        }
+        .slider-container label {
+            color: #ffb3ff;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+            text-shadow: 0 0 8px magenta;
+        }
+        input[type=range] {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #ff66cc, #aa88ff, #66ccff);
+            border-radius: 10px;
+            -webkit-appearance: none;
+            appearance: none;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 20px cyan, 0 0 8px magenta;
+            border: 2px solid #ffaaff;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        #file-input {
+            display: none;
+        }
+        .file-label {
+            background: linear-gradient(145deg, #331d4a, #1f1330);
+            padding: 12px 28px;
+            border-radius: 50px;
+            border: 1px solid #ff88dd;
+            color: #ffccff;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 0 20px #cc44ff;
+            transition: 0.2s;
+        }
+        .file-label:hover {
+            background: #442b60;
+            border-color: #ffccff;
+            box-shadow: 0 0 30px #ff88ff;
+        }
+        #clip-values {
+            color: #ffe6ff;
+            font-size: 0.9rem;
+            background: rgba(128,0,255,0.2);
+            padding: 6px 18px;
+            border-radius: 40px;
+            border-left: 2px solid hotpink;
+            font-weight: 300;
+        }
+        #clip-values strong {
+            color: #ffccff;
+            font-weight: 600;
+            text-shadow: 0 0 5px violet;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">✦ <span>neon flux</span> · 3D video clipper ✦</div>
+
+    <!-- UI Panel -->
+    <div id="controls">
+        <input type="file" id="file-input" accept="video/*">
+        <label for="file-input" class="file-label">📀 UPLOAD VIDEO</label>
+
+        <button class="btn" id="playPauseBtn">▶ PLAY</button>
+        <button class="btn" id="autoClipBtn">✨ AUTO CLIP</button>
+
+        <div class="slider-container">
+            <label>🎬 START</label>
+            <input type="range" id="startSlider" min="0" max="100" step="0.1" value="0">
+        </div>
+        <div class="slider-container">
+            <label>⏱️ END</label>
+            <input type="range" id="endSlider" min="0" max="100" step="0.1" value="30">
+        </div>
+        <div id="clip-values">
+            <strong>0.0s</strong> – <strong>0.0s</strong>
+        </div>
+    </div>
+
+    <!-- Three.js will insert canvas here -->
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.126.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'https://unpkg.com/three@0.126.0/examples/jsm/controls/OrbitControls.js';
+
+        // --- setup scene, camera, renderer (colorful, high contrast) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050510); // deep cosmic
+        
+        // Add a gradient background via CSS? But we can use a cube texture later. For now, add stars via particles.
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 2, 8);
+        camera.lookAt(0, 0, 0);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true; // not using shadows but could
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.body.appendChild(renderer.domElement);
+        
+        // controls so user can orbit around (but keep auto-rotate maybe)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.2;
+        controls.enableZoom = true;
+        controls.enablePan = false;
+        controls.maxPolarAngle = Math.PI / 2; // restrict below
+        
+        // --- LIGHTS (colorful) ---
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+        
+        const pointLight1 = new THREE.PointLight(0xff40c0, 1.5, 20);
+        pointLight1.position.set(3, 4, 3);
+        scene.add(pointLight1);
+        
+        const pointLight2 = new THREE.PointLight(0x40ffc0, 1.5, 20);
+        pointLight2.position.set(-3, 2, -4);
+        scene.add(pointLight2);
+        
+        const pointLight3 = new THREE.PointLight(0x80a0ff, 2, 25);
+        pointLight3.position.set(2, 3, -5);
+        scene.add(pointLight3);
+        
+        // extra fill light
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 2, 1);
+        scene.add(directionalLight);
+        
+        // --- CREATE CENTRAL VIDEO SPHERE (main attraction) ---
+        // video element (hidden, but will be used for texture)
+        const video = document.createElement('video');
+        video.crossOrigin = "anonymous";
+        video.loop = false; // we will handle looping manually for clipping
+        video.muted = true; // autoplay policy requires muted
+        video.playsInline = true;
+        video.style.display = 'none';
+        document.body.appendChild(video); // attach to DOM to ensure loading
+        
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
+        
+        // Main sphere geometry (high detail)
+        const geometry = new THREE.SphereGeometry(2.2, 128, 64);
+        // Use a shader-like material with emissive and video
+        const material = new THREE.MeshPhongMaterial({
+            map: videoTexture,
+            emissive: 0x332266,
+            emissiveIntensity: 0.4,
+            shininess: 40,
+            transparent: true,
+            side: THREE.DoubleSide, // to see inside if we orbit close
+        });
+        
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.castShadow = true;
+        sphere.receiveShadow = true;
+        scene.add(sphere);
+        
+        // Add a glowing wireframe shell around sphere for extra flair
+        const wireframeGeo = new THREE.SphereGeometry(2.25, 32, 16);
+        const wireframeMat = new THREE.MeshBasicMaterial({
+            color: 0xaa88ff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.25,
+            emissive: 0x4411aa
+        });
+        const wireframeSphere = new THREE.Mesh(wireframeGeo, wireframeMat);
+        scene.add(wireframeSphere);
+        
+        // --- FLOATING COLORFUL PARTICLES (stars) ---
+        const particleCount = 2000;
+        const particlesGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        
+        for (let i = 0; i < particleCount; i++) {
+            // random sphere distribution
+            const r = 8 + Math.random() * 10; // radius range
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            const x = r * Math.sin(phi) * Math.cos(theta);
+            const y = r * Math.sin(phi) * Math.sin(theta);
+            const z = r * Math.cos(phi);
+            
+            positions[i*3] = x;
+            positions[i*3+1] = y;
+            positions[i*3+2] = z;
+            
+            // random pastel colors
+            colors[i*3] = 0.5 + 0.5 * Math.random();   // r
+            colors[i*3+1] = 0.4 + 0.6 * Math.random(); // g
+            colors[i*3+2] = 0.8 + 0.2 * Math.random(); // b
+        }
+        
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        const particlesMat = new THREE.PointsMaterial({
+            size: 0.15,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            depthWrite: false
+        });
+        
+        const particles = new THREE.Points(particlesGeo, particlesMat);
+        scene.add(particles);
+        
+        // Add some floating geometric shapes (icosahedrons) around
+        const smallShapes = [];
+        const colorsArr = [0xff44aa, 0x44ffaa, 0xaa44ff, 0xffaa44, 0x44aaff];
+        for (let i = 0; i < 20; i++) {
+            const size = 0.2 + Math.random()*0.3;
+            const shapeGeo = new THREE.IcosahedronGeometry(size, 0);
+            const shapeMat = new THREE.MeshStandardMaterial({
+                color: colorsArr[Math.floor(Math.random()*colorsArr.length)],
+                emissive: 0x222222,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+            const mesh = new THREE.Mesh(shapeGeo, shapeMat);
+            
+            const angle = (i / 20) * Math.PI * 2;
+            const radius = 3.8 + Math.random()*0.5;
+            mesh.position.set(
+                Math.cos(angle) * radius,
+                (Math.random() - 0.5) * 2.5,
+                Math.sin(angle) * radius
+            );
+            mesh.castShadow = true;
+            mesh.receiveShadow = false;
+            scene.add(mesh);
+            smallShapes.push(mesh);
+        }
+        
+        // --- UI Element references & state ---
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const autoClipBtn = document.getElementById('autoClipBtn');
+        const startSlider = document.getElementById('startSlider');
+        const endSlider = document.getElementById('endSlider');
+        const clipValues = document.getElementById('clip-values');
+        const fileInput = document.getElementById('file-input');
+        
+        let videoDuration = 0;
+        let clipStart = 0;
+        let clipEnd = 30; // default
+        let isPlaying = false;
+        let autoRotateSaved = true; // controls.autoRotate
+        
+        // Helper to format time
+        const formatTime = (t) => t.toFixed(1);
+        
+        // Update clip display
+        function updateClipDisplay() {
+            clipValues.innerHTML = `<strong>${formatTime(clipStart)}s</strong> – <strong>${formatTime(clipEnd)}s</strong>`;
+        }
+        
+        // When video metadata loaded
+        video.addEventListener('loadedmetadata', () => {
+            videoDuration = video.duration;
+            clipEnd = Math.min(videoDuration, 30); // default end 30s or less
+            clipStart = 0;
+            
+            startSlider.max = videoDuration;
+            endSlider.max = videoDuration;
+            startSlider.value = clipStart;
+            endSlider.value = clipEnd;
+            updateClipDisplay();
+            
+            // attempt to play
+            video.currentTime = clipStart;
+            video.play().then(() => {
+                isPlaying = true;
+                playPauseBtn.innerHTML = '⏸ PAUSE';
+            }).catch(e => console.log('autoplay blocked, user must interact'));
+        });
+        
+        // Slider events
+        startSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (val < parseFloat(endSlider.value)) {
+                clipStart = val;
+                if (isPlaying) video.currentTime = clipStart;
+            } else {
+                // force start < end
+                startSlider.value = clipStart;
+            }
+            updateClipDisplay();
+        });
+        
+        endSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (val > parseFloat(startSlider.value)) {
+                clipEnd = val;
+            } else {
+                endSlider.value = clipEnd;
+            }
+            updateClipDisplay();
+        });
+        
+        // Play/Pause
+        playPauseBtn.addEventListener('click', () => {
+            if (video.readyState < 2) return;
+            if (isPlaying) {
+                video.pause();
+                playPauseBtn.innerHTML = '▶ PLAY';
+            } else {
+                video.play();
+                playPauseBtn.innerHTML = '⏸ PAUSE';
+            }
+            isPlaying = !isPlaying;
+        });
+        
+        // Auto clip: random 5s segment
+        autoClipBtn.addEventListener('click', () => {
+            if (videoDuration <= 0) return;
+            const maxStart = Math.max(0, videoDuration - 5);
+            const newStart = Math.random() * maxStart;
+            const newEnd = Math.min(videoDuration, newStart + 5);
+            clipStart = newStart;
+            clipEnd = newEnd;
+            startSlider.value = clipStart;
+            endSlider.value = clipEnd;
+            if (isPlaying) video.currentTime = clipStart;
+            updateClipDisplay();
+        });
+        
+        // File upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const url = URL.createObjectURL(file);
+            video.src = url;
+            video.load();
+            
+            // reset sliders
+            video.addEventListener('loadedmetadata', () => {
+                // Will be handled above, but force reset
+                URL.revokeObjectURL(url);
+            }, { once: true });
+        });
+        
+        // Manual clipping logic: check time and loop within clip range
+        video.addEventListener('timeupdate', () => {
+            if (!isPlaying) return;
+            if (video.currentTime >= clipEnd || video.currentTime < clipStart) {
+                video.currentTime = clipStart;
+            }
+        });
+        
+        // Also when video ends (if loop disabled), we manually loop inside clip
+        video.addEventListener('ended', () => {
+            if (isPlaying) {
+                video.currentTime = clipStart;
+                video.play();
+            }
+        });
+        
+        // --- Animation loop ---
+        let clock = new THREE.Clock();
+        
+        function animate() {
+            const delta = clock.getDelta();
+            const elapsed = performance.now() * 0.001; // seconds
+            
+            // Rotate particles slowly
+            particles.rotation.y += 0.0002;
+            particles.rotation.x += 0.0001;
+            
+            // Bob small shapes
+            smallShapes.forEach((shape, index) => {
+                shape.rotation.x += 0.01;
+                shape.rotation.y += 0.02;
+                // subtle position shift
+                shape.position.y += Math.sin(elapsed * 2 + index) * 0.002;
+            });
+            
+            // Rotate wireframe sphere opposite direction
+            wireframeSphere.rotation.x += 0.001;
+            wireframeSphere.rotation.y += 0.002;
+            
+            controls.update(); // for auto-rotate
+            
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        
+        animate();
+        
+        // Resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initial fake video: we could start with a sample? But user must upload.
+        // To make it beautiful even without video, let's set a placeholder texture? 
+        // We'll create a colorful canvas texture as fallback.
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#1a0f2a';
+        ctx.fillRect(0,0,512,512);
+        ctx.font = 'bold 40px "Segoe UI"';
+        ctx.fillStyle = '#cc88ff';
+        ctx.textAlign = 'center';
+        ctx.fillText('UPLOAD', 256, 200);
+        ctx.fillText('VIDEO', 256, 280);
+        // draw some neon lines
+        ctx.strokeStyle = '#ff66aa';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(100, 400);
+        ctx.lineTo(412, 400);
+        ctx.stroke();
+        
+        const fallbackTex = new THREE.CanvasTexture(canvas);
+        material.map = fallbackTex;
+        material.needsUpdate = true;
+        
+        // Once video is ready, replace texture
+        video.addEventListener('canplay', () => {
+            material.map = videoTexture;
+            material.needsUpdate = true;
+        });
+        
+        // Also handle if video ends
+    </script>
+</body>
+</html>
